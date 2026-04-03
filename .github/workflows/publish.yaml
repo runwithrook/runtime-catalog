@@ -1,0 +1,292 @@
+name: publish
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "runtime-catalog.json"
+      - "runtime-trust-policy.json"
+      - "scripts/attest_catalog.py"
+      - ".github/workflows/publish.yaml"
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "Catalog release operation"
+        type: choice
+        required: true
+        default: publish_canary
+        options:
+          - publish_canary
+          - promote_stable
+          - rollback_previous
+          - rollback_to_version
+      target_release_id:
+        description: "Existing immutable release id for stable promotion"
+        required: false
+        type: string
+      target_publication_version:
+        description: "Historical publication version for rollback_to_version"
+        required: false
+        type: string
+      promote_stable_now:
+        description: "Also move stable to the newly published release"
+        required: false
+        type: boolean
+        default: false
+      rook_repository:
+        description: "Rook repo to use until the main repo moves under runwithrook"
+        required: false
+        type: string
+        default: andreidavid/rook
+      rook_ref:
+        description: "Rook ref to use"
+        required: false
+        type: string
+        default: main
+      note:
+        description: "Optional operator note stored in the promotion ledger"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      CATALOG_DIR: catalog
+      PUBLICATION_ROOT: publication
+    steps:
+      - name: Checkout runtime catalog repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout Rook CLI
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event_name == 'workflow_dispatch' && inputs.rook_repository || 'andreidavid/rook' }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.rook_ref || 'main' }}
+          path: rook-src
+
+      - name: Checkout existing publication branch
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: publication-current
+
+      - name: Ensure publication root exists
+        run: |
+          mkdir -p "${PUBLICATION_ROOT}"
+          if [ -d publication-current ]; then
+            rsync -a --delete --exclude='.git' publication-current/ "${PUBLICATION_ROOT}/"
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Resolve operation config
+        id: config
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            operation="${{ inputs.operation }}"
+            promote_stable_now="${{ inputs.promote_stable_now }}"
+            rook_repository="${{ inputs.rook_repository }}"
+            rook_ref="${{ inputs.rook_ref }}"
+            note="${{ inputs.note }}"
+            target_release_id="${{ inputs.target_release_id }}"
+            target_publication_version="${{ inputs.target_publication_version }}"
+          else
+            operation="publish_canary"
+            promote_stable_now="false"
+            rook_repository="andreidavid/rook"
+            rook_ref="main"
+            note=""
+            target_release_id=""
+            target_publication_version=""
+          fi
+          echo "operation=${operation}" >> "${GITHUB_OUTPUT}"
+          echo "promote_stable_now=${promote_stable_now}" >> "${GITHUB_OUTPUT}"
+          echo "rook_repository=${rook_repository}" >> "${GITHUB_OUTPUT}"
+          echo "rook_ref=${rook_ref}" >> "${GITHUB_OUTPUT}"
+          echo "note=${note}" >> "${GITHUB_OUTPUT}"
+          echo "target_release_id=${target_release_id}" >> "${GITHUB_OUTPUT}"
+          echo "target_publication_version=${target_publication_version}" >> "${GITHUB_OUTPUT}"
+          echo "builder_identity=https://github.com/${GITHUB_REPOSITORY}/.github/workflows/publish.yaml@${GITHUB_REF}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build runtime catalog
+        if: steps.config.outputs.operation == 'publish_canary'
+        run: |
+          PYTHONPATH=rook-src/src python3 -m rook runtime catalog build \
+            --definition runtime-catalog.json \
+            --output-dir "${CATALOG_DIR}"
+
+      - name: Sign runtime catalog
+        if: steps.config.outputs.operation == 'publish_canary'
+        run: |
+          PYTHONPATH=rook-src/src python3 -m rook runtime catalog sign \
+            --catalog-dir "${CATALOG_DIR}"
+
+      - name: Attest runtime catalog
+        if: steps.config.outputs.operation == 'publish_canary'
+        run: |
+          python3 scripts/attest_catalog.py \
+            --catalog-dir "${CATALOG_DIR}" \
+            --builder-identity "${{ steps.config.outputs.builder_identity }}" \
+            --source-repo "https://github.com/${GITHUB_REPOSITORY}" \
+            --source-ref "${GITHUB_REF}"
+
+      - name: Verify runtime catalog locally
+        if: steps.config.outputs.operation == 'publish_canary'
+        env:
+          ROOK_RUNTIME_TRUST_POLICY_PATH: runtime-trust-policy.json
+        run: |
+          PYTHONPATH=rook-src/src python3 -m rook runtime catalog verify-local \
+            --catalog-dir "${CATALOG_DIR}" \
+            --json > verify-local-report.json
+
+      - name: Publish immutable release
+        if: steps.config.outputs.operation == 'publish_canary'
+        run: |
+          PYTHONPATH=rook-src/src python3 -m rook runtime catalog publish \
+            --catalog-dir "${CATALOG_DIR}" \
+            --publication-root "${PUBLICATION_ROOT}" \
+            --json > publish-report.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("publish-report.json").read_text(encoding="utf-8"))
+          Path("release-id.txt").write_text(str(payload["release_id"]), encoding="utf-8")
+          PY
+
+      - name: Promote published release
+        if: steps.config.outputs.operation == 'publish_canary'
+        run: |
+          release_id="$(cat release-id.txt)"
+          args=(
+            --publication-root "${PUBLICATION_ROOT}"
+            --builder-identity "${{ steps.config.outputs.builder_identity }}"
+            --channel "canary=${release_id}"
+          )
+          if [ "${{ steps.config.outputs.promote_stable_now }}" = "true" ]; then
+            args+=(--channel "stable=${release_id}")
+          fi
+          note="${{ steps.config.outputs.note }}"
+          if [ -z "${note}" ]; then
+            note="publish canary ${release_id}"
+          fi
+          args+=(--note "${note}")
+          PYTHONPATH=rook-src/src python3 -m rook runtime catalog promote "${args[@]}" --json > root-operation-report.json
+
+      - name: Promote stable to an existing release
+        if: steps.config.outputs.operation == 'promote_stable'
+        run: |
+          if [ -z "${{ steps.config.outputs.target_release_id }}" ]; then
+            echo "target_release_id is required for promote_stable" >&2
+            exit 1
+          fi
+          note="${{ steps.config.outputs.note }}"
+          if [ -z "${note}" ]; then
+            note="promote stable ${{ steps.config.outputs.target_release_id }}"
+          fi
+          PYTHONPATH=rook-src/src python3 -m rook runtime catalog promote \
+            --publication-root "${PUBLICATION_ROOT}" \
+            --builder-identity "${{ steps.config.outputs.builder_identity }}" \
+            --channel "stable=${{ steps.config.outputs.target_release_id }}" \
+            --note "${note}" \
+            --json > root-operation-report.json
+
+      - name: Roll back to previous publication version
+        if: steps.config.outputs.operation == 'rollback_previous'
+        run: |
+          note="${{ steps.config.outputs.note }}"
+          if [ -z "${note}" ]; then
+            note="rollback previous publication version"
+          fi
+          PYTHONPATH=rook-src/src python3 -m rook runtime catalog rollback \
+            --publication-root "${PUBLICATION_ROOT}" \
+            --builder-identity "${{ steps.config.outputs.builder_identity }}" \
+            --note "${note}" \
+            --json > root-operation-report.json
+
+      - name: Roll back to an explicit publication version
+        if: steps.config.outputs.operation == 'rollback_to_version'
+        run: |
+          if [ -z "${{ steps.config.outputs.target_publication_version }}" ]; then
+            echo "target_publication_version is required for rollback_to_version" >&2
+            exit 1
+          fi
+          note="${{ steps.config.outputs.note }}"
+          if [ -z "${note}" ]; then
+            note="rollback publication version ${{ steps.config.outputs.target_publication_version }}"
+          fi
+          PYTHONPATH=rook-src/src python3 -m rook runtime catalog rollback \
+            --publication-root "${PUBLICATION_ROOT}" \
+            --to-publication-version "${{ steps.config.outputs.target_publication_version }}" \
+            --builder-identity "${{ steps.config.outputs.builder_identity }}" \
+            --note "${note}" \
+            --json > root-operation-report.json
+
+      - name: Render publication history
+        run: |
+          PYTHONPATH=rook-src/src python3 -m rook runtime catalog history \
+            --publication-root "${PUBLICATION_ROOT}" \
+            --json > history-report.json
+
+      - name: Write job summary
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          summary_path = Path(os.environ["GITHUB_STEP_SUMMARY"])
+          operation = Path("root-operation-report.json")
+          history = json.loads(Path("history-report.json").read_text(encoding="utf-8"))
+          summary_path.write_text("## Runtime Catalog Publication\n\n", encoding="utf-8")
+          if Path("publish-report.json").exists():
+            publish = json.loads(Path("publish-report.json").read_text(encoding="utf-8"))
+            with summary_path.open("a", encoding="utf-8") as handle:
+              handle.write(f"- Published immutable release `{publish['release_id']}`\n")
+          if operation.exists():
+            root = json.loads(operation.read_text(encoding="utf-8"))
+            posture = root.get("rollout_posture") or {}
+            with summary_path.open("a", encoding="utf-8") as handle:
+              handle.write(f"- Root operation: `{root['operation']}` -> publication version `{root['publication_version']}`\n")
+              if posture:
+                handle.write(f"- Rollout posture: `{posture.get('status')}` - {posture.get('summary')}\n")
+          with summary_path.open("a", encoding="utf-8") as handle:
+            handle.write(f"- Current publication version: `{history.get('current_publication_version')}`\n")
+            for step in history.get("next_steps") or []:
+              handle.write(f"- Next step: {step}\n")
+          PY
+
+      - name: Upload catalog artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-catalog-publication
+          path: |
+            catalog/
+            publication/
+            verify-local-report.json
+            publish-report.json
+            root-operation-report.json
+            history-report.json
+          if-no-files-found: ignore
+
+      - name: Deploy publication root to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./publication
+          force_orphan: false

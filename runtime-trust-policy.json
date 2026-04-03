@@ -1,0 +1,18 @@
+{
+  "name": "runtime-catalog-publication",
+  "allow_unsigned": false,
+  "require_source_signature": true,
+  "require_source_provenance": true,
+  "allowed_source_signature_identities": [
+    "https://github.com/runwithrook/runtime-catalog/.github/workflows/publish.yaml@refs/heads/main"
+  ],
+  "allowed_source_signature_issuers": [
+    "https://token.actions.githubusercontent.com"
+  ],
+  "required_source_builder_identities": [
+    "https://github.com/runwithrook/runtime-catalog/.github/workflows/publish.yaml@refs/heads/main"
+  ],
+  "required_source_provenance_predicates": [
+    "https://slsa.dev/provenance/v1"
+  ]
+}

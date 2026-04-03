@@ -1,0 +1,101 @@
+{
+  "version": "1",
+  "catalog": {
+    "name": "runwithrook-runtime",
+    "description": "Managed runtime catalog for Rook design-partner rollout",
+    "version_id": "2026.04.03.1",
+    "refresh_after_hours": 24,
+    "signature": {
+      "status": "verified",
+      "identity": "https://github.com/runwithrook/runtime-catalog/.github/workflows/publish.yaml@refs/heads/main",
+      "issuer": "https://token.actions.githubusercontent.com"
+    },
+    "provenance": {
+      "status": "verified",
+      "predicate_type": "https://slsa.dev/provenance/v1",
+      "builder_identity": "https://github.com/runwithrook/runtime-catalog/.github/workflows/publish.yaml@refs/heads/main"
+    }
+  },
+  "channels": [
+    {
+      "family": "developer",
+      "profile": "core",
+      "backend": "guest_linux",
+      "platform": "linux/arm64",
+      "channel": "stable",
+      "artifact_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "manifest_ref": "manifests/developer-core-stable-arm64.json"
+    },
+    {
+      "family": "developer",
+      "profile": "core",
+      "backend": "guest_linux",
+      "platform": "linux/arm64",
+      "channel": "canary",
+      "artifact_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "manifest_ref": "manifests/developer-core-canary-arm64.json"
+    }
+  ],
+  "artifacts": [
+    {
+      "manifest_path": "manifests/developer-core-stable-arm64.json",
+      "family": "developer",
+      "profile": "core",
+      "backend": "guest_linux",
+      "platform": "linux/arm64",
+      "version": "2026.04.03.1",
+      "channel": "stable",
+      "artifact_ref": "ghcr.io/runwithrook/runtime/developer-core:2026.04.03.1",
+      "artifact_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "supported_agents": [
+        "claude",
+        "codex"
+      ],
+      "minimum_rook_version": "0.1.0",
+      "provisioning_contract_version": "multi_agent_guest_v1",
+      "annotations": {
+        "distribution": "rook"
+      },
+      "signature": {
+        "status": "verified",
+        "identity": "https://github.com/runwithrook/runtime/.github/workflows/release.yaml@refs/heads/main",
+        "issuer": "https://token.actions.githubusercontent.com"
+      },
+      "provenance": {
+        "status": "verified",
+        "predicate_type": "https://slsa.dev/provenance/v1",
+        "builder_identity": "https://github.com/runwithrook/runtime/.github/workflows/release.yaml@refs/heads/main"
+      }
+    },
+    {
+      "manifest_path": "manifests/developer-core-canary-arm64.json",
+      "family": "developer",
+      "profile": "core",
+      "backend": "guest_linux",
+      "platform": "linux/arm64",
+      "version": "2026.04.03.1",
+      "channel": "canary",
+      "artifact_ref": "ghcr.io/runwithrook/runtime/developer-core:2026.04.03.1",
+      "artifact_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "supported_agents": [
+        "claude",
+        "codex"
+      ],
+      "minimum_rook_version": "0.1.0",
+      "provisioning_contract_version": "multi_agent_guest_v1",
+      "annotations": {
+        "distribution": "rook"
+      },
+      "signature": {
+        "status": "verified",
+        "identity": "https://github.com/runwithrook/runtime/.github/workflows/release.yaml@refs/heads/main",
+        "issuer": "https://token.actions.githubusercontent.com"
+      },
+      "provenance": {
+        "status": "verified",
+        "predicate_type": "https://slsa.dev/provenance/v1",
+        "builder_identity": "https://github.com/runwithrook/runtime/.github/workflows/release.yaml@refs/heads/main"
+      }
+    }
+  ]
+}

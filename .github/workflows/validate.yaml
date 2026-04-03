@@ -1,0 +1,50 @@
+name: validate-runtime-catalog
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    paths:
+      - "runtime-catalog.json"
+      - "runtime-trust-policy.json"
+      - "scripts/attest_catalog.py"
+      - ".github/workflows/validate.yaml"
+      - ".github/workflows/publish.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout runtime catalog repo
+        uses: actions/checkout@v4
+
+      - name: Checkout Rook CLI
+        uses: actions/checkout@v4
+        with:
+          repository: andreidavid/rook
+          ref: main
+          path: rook-src
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate helper script syntax
+        run: python3 -m py_compile scripts/attest_catalog.py
+
+      - name: Build runtime catalog
+        run: |
+          PYTHONPATH=rook-src/src python3 -m rook runtime catalog build \
+            --definition runtime-catalog.json \
+            --output-dir catalog
+
+      - name: Upload built catalog preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-catalog-build-preview
+          path: catalog/
