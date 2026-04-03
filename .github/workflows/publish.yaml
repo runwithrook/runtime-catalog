@@ -71,6 +71,7 @@ jobs:
           repository: ${{ github.event_name == 'workflow_dispatch' && inputs.rook_repository || 'andreidavid/rook' }}
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.rook_ref || 'main' }}
           path: rook-src
+          token: ${{ secrets.ROOK_REPOSITORY_TOKEN || github.token }}
 
       - name: Checkout existing publication branch
         continue-on-error: true

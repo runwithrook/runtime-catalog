@@ -68,6 +68,18 @@ You can override that in `workflow_dispatch` with:
 
 Once the main repo moves, update the workflow default to `runwithrook/rook`.
 
+## Required Secret While Rook Is Private
+
+Right now the workflows check out `andreidavid/rook`, which is still private.
+
+Add this repository secret in `runwithrook/runtime-catalog`:
+
+- `ROOK_REPOSITORY_TOKEN`
+
+It should be a GitHub token with read access to the private Rook repo.
+
+Once the main Rook repo is public or moved to a public `runwithrook/rook`, this secret is no longer required.
+
 ## Before First Real Publish
 
 Replace the placeholder data in [runtime-catalog.json](runtime-catalog.json):

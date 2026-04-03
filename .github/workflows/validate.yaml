@@ -28,6 +28,7 @@ jobs:
           repository: andreidavid/rook
           ref: main
           path: rook-src
+          token: ${{ secrets.ROOK_REPOSITORY_TOKEN || github.token }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
