@@ -69,26 +69,29 @@ That means most release-shape problems are caught before `main` merges or before
 
 ## Current Bootstrap Assumption
 
-Until the main Rook repo is moved under `runwithrook`, the workflows default to checking out:
+The workflows now default to checking out:
 
-- `andreidavid/rook`
+- `rookplane/rook`
 
 You can override that in `workflow_dispatch` with:
 
 - `rook_repository`
 - `rook_ref`
 
-Once the main repo moves, update the workflow default to `runwithrook/rook`.
+If you need to validate against a different branch or fork, override the workflow inputs:
+
+- `rook_repository`
+- `rook_ref`
 
 ## Required Secret While Rook Is Private
 
-Right now the workflows check out `andreidavid/rook`, which is still private.
+Right now the workflows check out `rookplane/rook`, which is still private.
 
 Add this repository secret in `runwithrook/runtime-catalog`:
 
 - `ROOK_REPOSITORY_TOKEN`
 
-It should be a GitHub token with read access to the private Rook repo.
+It should be a GitHub token with read access to the private `rookplane/rook` repo.
 
 Once the main Rook repo is public or moved to a public `runwithrook/rook`, this secret is no longer required.
 

@@ -22,7 +22,7 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     env:
-      DEFAULT_ROOK_REPOSITORY: andreidavid/rook
+      DEFAULT_ROOK_REPOSITORY: rookplane/rook
       DEFAULT_ROOK_REF: main
       CATALOG_DIR: catalog
       PUBLICATION_ROOT: publication
