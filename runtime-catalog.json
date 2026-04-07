@@ -7,13 +7,13 @@
     "refresh_after_hours": 24,
     "signature": {
       "status": "verified",
-      "identity": "https://github.com/runwithrook/runtime-catalog/.github/workflows/publish.yaml@refs/heads/main",
+      "identity": "https://github.com/rookplane/runtime-catalog/.github/workflows/publish.yaml@refs/heads/main",
       "issuer": "https://token.actions.githubusercontent.com"
     },
     "provenance": {
       "status": "verified",
       "predicate_type": "https://slsa.dev/provenance/v1",
-      "builder_identity": "https://github.com/runwithrook/runtime-catalog/.github/workflows/publish.yaml@refs/heads/main"
+      "builder_identity": "https://github.com/rookplane/runtime-catalog/.github/workflows/publish.yaml@refs/heads/main"
     }
   },
   "channels": [

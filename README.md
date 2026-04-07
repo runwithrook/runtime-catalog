@@ -1,6 +1,6 @@
 # Runtime Catalog
 
-This repo is the publication surface for `runwithrook/runtime-catalog`.
+This repo is the publication surface for `rookplane/runtime-catalog`.
 
 It exists to do one thing well:
 
@@ -41,7 +41,7 @@ Recommended rollout posture:
 
 The publish workflow uses one stable builder identity:
 
-- `https://github.com/runwithrook/runtime-catalog/.github/workflows/publish.yaml@refs/heads/main`
+- `https://github.com/rookplane/runtime-catalog/.github/workflows/publish.yaml@refs/heads/main`
 
 That identity is what the sample trust policy expects for both signatures and provenance.
 
@@ -87,7 +87,7 @@ If you need to validate against a different branch or fork, override the workflo
 
 Right now the workflows check out `rookplane/rook`, which is still private.
 
-Add this repository secret in `runwithrook/runtime-catalog`:
+Add this repository secret in `rookplane/runtime-catalog`:
 
 - `ROOK_REPOSITORY_TOKEN`
 
@@ -119,7 +119,7 @@ Then confirm the local path works with:
 ```bash
 PYTHONPATH=/path/to/rook/src python3 -m rook runtime catalog build --definition runtime-catalog.json --output-dir catalog
 PYTHONPATH=/path/to/rook/src python3 -m rook runtime catalog sign --catalog-dir catalog
-python3 scripts/attest_catalog.py --catalog-dir catalog --builder-identity "https://github.com/runwithrook/runtime-catalog/.github/workflows/publish.yaml@refs/heads/main" --source-repo "https://github.com/runwithrook/runtime-catalog" --source-ref "refs/heads/main"
+python3 scripts/attest_catalog.py --catalog-dir catalog --builder-identity "https://github.com/rookplane/runtime-catalog/.github/workflows/publish.yaml@refs/heads/main" --source-repo "https://github.com/rookplane/runtime-catalog" --source-ref "refs/heads/main"
 ROOK_RUNTIME_TRUST_POLICY_PATH=runtime-trust-policy.json PYTHONPATH=/path/to/rook/src python3 -m rook runtime catalog verify-local --catalog-dir catalog
 ```
 
