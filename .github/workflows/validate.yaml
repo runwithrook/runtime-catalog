@@ -1,6 +1,7 @@
 name: validate-runtime-catalog
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches:
@@ -11,13 +12,21 @@ on:
       - "scripts/attest_catalog.py"
       - ".github/workflows/validate.yaml"
       - ".github/workflows/publish.yaml"
+      - "README.md"
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   validate:
     runs-on: ubuntu-latest
+    env:
+      DEFAULT_ROOK_REPOSITORY: andreidavid/rook
+      DEFAULT_ROOK_REF: main
+      CATALOG_DIR: catalog
+      PUBLICATION_ROOT: publication
+      BUILDER_IDENTITY: https://github.com/runwithrook/runtime-catalog/.github/workflows/publish.yaml@refs/heads/main
     steps:
       - name: Checkout runtime catalog repo
         uses: actions/checkout@v4
@@ -25,8 +34,8 @@ jobs:
       - name: Checkout Rook CLI
         uses: actions/checkout@v4
         with:
-          repository: andreidavid/rook
-          ref: main
+          repository: ${{ env.DEFAULT_ROOK_REPOSITORY }}
+          ref: ${{ env.DEFAULT_ROOK_REF }}
           path: rook-src
           token: ${{ secrets.ROOK_REPOSITORY_TOKEN || github.token }}
 
@@ -42,10 +51,70 @@ jobs:
         run: |
           PYTHONPATH=rook-src/src python3 -m rook runtime catalog build \
             --definition runtime-catalog.json \
-            --output-dir catalog
+            --output-dir "${CATALOG_DIR}"
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign runtime catalog
+        run: |
+          PYTHONPATH=rook-src/src python3 -m rook runtime catalog sign \
+            --catalog-dir "${CATALOG_DIR}"
+
+      - name: Attest runtime catalog
+        run: |
+          python3 scripts/attest_catalog.py \
+            --catalog-dir "${CATALOG_DIR}" \
+            --builder-identity "${BUILDER_IDENTITY}" \
+            --source-repo "https://github.com/${GITHUB_REPOSITORY}" \
+            --source-ref "${GITHUB_REF}"
+
+      - name: Verify runtime catalog locally
+        env:
+          ROOK_RUNTIME_TRUST_POLICY_PATH: runtime-trust-policy.json
+        run: |
+          PYTHONPATH=rook-src/src python3 -m rook runtime catalog verify-local \
+            --catalog-dir "${CATALOG_DIR}" \
+            --json > verify-local-report.json
+
+      - name: Publish immutable release locally
+        run: |
+          PYTHONPATH=rook-src/src python3 -m rook runtime catalog publish \
+            --catalog-dir "${CATALOG_DIR}" \
+            --publication-root "${PUBLICATION_ROOT}" \
+            --json > publish-report.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("publish-report.json").read_text(encoding="utf-8"))
+          Path("release-id.txt").write_text(str(payload["release_id"]), encoding="utf-8")
+          PY
+
+      - name: Promote canary locally
+        run: |
+          release_id="$(cat release-id.txt)"
+          PYTHONPATH=rook-src/src python3 -m rook runtime catalog promote \
+            --publication-root "${PUBLICATION_ROOT}" \
+            --builder-identity "${BUILDER_IDENTITY}" \
+            --channel "canary=${release_id}" \
+            --note "validate canary ${release_id}" \
+            --json > promote-report.json
+
+      - name: Render publication history
+        run: |
+          PYTHONPATH=rook-src/src python3 -m rook runtime catalog history \
+            --publication-root "${PUBLICATION_ROOT}" \
+            --json > history-report.json
 
       - name: Upload built catalog preview
         uses: actions/upload-artifact@v4
         with:
-          name: runtime-catalog-build-preview
-          path: catalog/
+          name: runtime-catalog-build-preview-${{ github.run_id }}
+          path: |
+            catalog/
+            publication/
+            verify-local-report.json
+            publish-report.json
+            promote-report.json
+            history-report.json
+          retention-days: 14

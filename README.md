@@ -55,6 +55,18 @@ Default workflow behavior:
 
 The workflow publishes the static files to the `gh-pages` branch.
 
+The validation workflow is now stronger than a syntax check. It does a full local preflight:
+
+- build the catalog
+- sign the channel index and manifests
+- attest them with the shared builder identity
+- verify the local catalog against `runtime-trust-policy.json`
+- publish an immutable release into a temporary local publication root
+- promote that release to `canary`
+- render publication history
+
+That means most release-shape problems are caught before `main` merges or before the real publish workflow updates `gh-pages`.
+
 ## Current Bootstrap Assumption
 
 Until the main Rook repo is moved under `runwithrook`, the workflows default to checking out:
@@ -80,6 +92,16 @@ It should be a GitHub token with read access to the private Rook repo.
 
 Once the main Rook repo is public or moved to a public `runwithrook/rook`, this secret is no longer required.
 
+## Bootstrap Checklist
+
+Before the automation is fully hands-off, there are still a few one-time GitHub-side steps:
+
+1. Enable GitHub Actions for this repo.
+2. Add the `ROOK_REPOSITORY_TOKEN` secret while the main Rook repo is still private.
+3. After the first successful publish, enable GitHub Pages for the `gh-pages` branch if you want a browsable static publication surface.
+
+Nothing else should be required for normal publish, promote, and rollback runs.
+
 ## Before First Real Publish
 
 Replace the placeholder data in [runtime-catalog.json](runtime-catalog.json):
@@ -100,10 +122,10 @@ ROOK_RUNTIME_TRUST_POLICY_PATH=runtime-trust-policy.json PYTHONPATH=/path/to/roo
 
 ## Publish Outputs
 
-The workflow uploads:
+The validation and publish workflows upload:
 
 - the built `catalog/`
 - the rendered `publication/`
-- JSON operation reports for publish/promote/rollback/history
+- JSON operation reports for verify/publish/promote/rollback/history
 
 That makes it easier to inspect a failed run without reconstructing the state locally.

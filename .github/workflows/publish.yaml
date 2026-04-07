@@ -9,6 +9,8 @@ on:
       - "runtime-trust-policy.json"
       - "scripts/attest_catalog.py"
       - ".github/workflows/publish.yaml"
+      - ".github/workflows/validate.yaml"
+      - "README.md"
   workflow_dispatch:
     inputs:
       operation:
@@ -53,12 +55,19 @@ permissions:
   contents: write
   id-token: write
 
+concurrency:
+  group: runtime-catalog-publication
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
     env:
+      DEFAULT_ROOK_REPOSITORY: andreidavid/rook
+      DEFAULT_ROOK_REF: main
       CATALOG_DIR: catalog
       PUBLICATION_ROOT: publication
+      BUILDER_IDENTITY: https://github.com/runwithrook/runtime-catalog/.github/workflows/publish.yaml@refs/heads/main
     steps:
       - name: Checkout runtime catalog repo
         uses: actions/checkout@v4
@@ -68,8 +77,8 @@ jobs:
       - name: Checkout Rook CLI
         uses: actions/checkout@v4
         with:
-          repository: ${{ github.event_name == 'workflow_dispatch' && inputs.rook_repository || 'andreidavid/rook' }}
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.rook_ref || 'main' }}
+          repository: ${{ github.event_name == 'workflow_dispatch' && inputs.rook_repository || env.DEFAULT_ROOK_REPOSITORY }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.rook_ref || env.DEFAULT_ROOK_REF }}
           path: rook-src
           token: ${{ secrets.ROOK_REPOSITORY_TOKEN || github.token }}
 
@@ -109,8 +118,8 @@ jobs:
           else
             operation="publish_canary"
             promote_stable_now="false"
-            rook_repository="andreidavid/rook"
-            rook_ref="main"
+            rook_repository="${DEFAULT_ROOK_REPOSITORY}"
+            rook_ref="${DEFAULT_ROOK_REF}"
             note=""
             target_release_id=""
             target_publication_version=""
@@ -122,7 +131,15 @@ jobs:
           echo "note=${note}" >> "${GITHUB_OUTPUT}"
           echo "target_release_id=${target_release_id}" >> "${GITHUB_OUTPUT}"
           echo "target_publication_version=${target_publication_version}" >> "${GITHUB_OUTPUT}"
-          echo "builder_identity=https://github.com/${GITHUB_REPOSITORY}/.github/workflows/publish.yaml@${GITHUB_REF}" >> "${GITHUB_OUTPUT}"
+          echo "builder_identity=${BUILDER_IDENTITY}" >> "${GITHUB_OUTPUT}"
+
+      - name: Require existing publication root for mutation-only operations
+        if: steps.config.outputs.operation != 'publish_canary'
+        run: |
+          if [ ! -f "${PUBLICATION_ROOT}/runtime-channels.json" ]; then
+            echo "No published root state exists yet. Run publish_canary first." >&2
+            exit 1
+          fi
 
       - name: Build runtime catalog
         if: steps.config.outputs.operation == 'publish_canary'
@@ -274,7 +291,7 @@ jobs:
       - name: Upload catalog artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: runtime-catalog-publication
+          name: runtime-catalog-publication-${{ github.run_id }}
           path: |
             catalog/
             publication/
@@ -283,6 +300,7 @@ jobs:
             root-operation-report.json
             history-report.json
           if-no-files-found: ignore
+          retention-days: 14
 
       - name: Deploy publication root to gh-pages
         uses: peaceiris/actions-gh-pages@v4
