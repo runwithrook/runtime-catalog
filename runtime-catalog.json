@@ -45,7 +45,7 @@
       "platform": "linux/arm64",
       "version": "2026.04.03.1",
       "channel": "stable",
-      "artifact_ref": "ghcr.io/runwithrook/runtime/developer-core:2026.04.03.1",
+      "artifact_ref": "ghcr.io/rookplane/runtime/developer-core:2026.04.03.1",
       "artifact_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
       "supported_agents": [
         "claude",
@@ -58,13 +58,13 @@
       },
       "signature": {
         "status": "verified",
-        "identity": "https://github.com/runwithrook/runtime/.github/workflows/release.yaml@refs/heads/main",
+        "identity": "https://github.com/rookplane/runtime/.github/workflows/release.yaml@refs/heads/main",
         "issuer": "https://token.actions.githubusercontent.com"
       },
       "provenance": {
         "status": "verified",
         "predicate_type": "https://slsa.dev/provenance/v1",
-        "builder_identity": "https://github.com/runwithrook/runtime/.github/workflows/release.yaml@refs/heads/main"
+        "builder_identity": "https://github.com/rookplane/runtime/.github/workflows/release.yaml@refs/heads/main"
       }
     },
     {
@@ -75,7 +75,7 @@
       "platform": "linux/arm64",
       "version": "2026.04.03.1",
       "channel": "canary",
-      "artifact_ref": "ghcr.io/runwithrook/runtime/developer-core:2026.04.03.1",
+      "artifact_ref": "ghcr.io/rookplane/runtime/developer-core:2026.04.03.1",
       "artifact_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
       "supported_agents": [
         "claude",
@@ -88,13 +88,13 @@
       },
       "signature": {
         "status": "verified",
-        "identity": "https://github.com/runwithrook/runtime/.github/workflows/release.yaml@refs/heads/main",
+        "identity": "https://github.com/rookplane/runtime/.github/workflows/release.yaml@refs/heads/main",
         "issuer": "https://token.actions.githubusercontent.com"
       },
       "provenance": {
         "status": "verified",
         "predicate_type": "https://slsa.dev/provenance/v1",
-        "builder_identity": "https://github.com/runwithrook/runtime/.github/workflows/release.yaml@refs/heads/main"
+        "builder_identity": "https://github.com/rookplane/runtime/.github/workflows/release.yaml@refs/heads/main"
       }
     }
   ]
